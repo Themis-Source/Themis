@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="#key-features">Key Features</a> •
-  <a href="#publication">Publication</a> •
+  <a href="#repository-layout">Repository Layout</a> •
   <a href="#get-started">Get Started</a> •
   <a href="#requirements">Requirements</a> •
   <a href="#license">License</a>
@@ -18,72 +18,89 @@
 
 <a id="key-features"></a>
 
-## ✨ Key Features
+## Key Features
 
-- Scheduling-aware buffer management for SRAM/HBM hybrid buffers.
+- Scheduling-aware buffer management for SRAM/off-chip hybrid buffers.
 - Rank-guided placement that keeps earlier-departing packets in low-latency storage whenever possible.
 - Proactive migration across memory tiers instead of waiting for congestion to drain naturally.
-- Contiguous organization of consecutively departing packets to improve effective HBM access efficiency.
+- Batch-oriented off-chip organization for consecutively departing packets.
 - A BM-SCH unified model built around BBQ and linked-cell buffer organization.
 
-![Themis Architecture](docs/themis-architecture.png)
+![Themis Architecture](hbm/docs/themis-architecture.png)
 
-<a id="publication"></a>
+<a id="repository-layout"></a>
 
-## 📄 Publication
+## Repository Layout
 
-**Themis: Scheduling-Aware Buffer Management for HBM-Based Hybrid Buffers**
+This repository keeps the two FPGA-oriented versions separated at the top level:
 
-> Packet buffers are critical for absorbing congestion and sustaining throughput in high-speed routers. As link rates escalate, on-chip SRAM alone can no longer provide sufficient capacity. To address this, modern routers widely adopt hybrid buffer architectures that augment limited on-chip SRAM with large off-chip DRAM.
+```text
+hbm/
+  docs/
+  rtl/
 
-> Despite this architectural promise, existing hybrid Buffer Management (BM) schemes severely undermine router performance. They simply redirect packets that would otherwise be dropped into DRAM, which leads to priority inversion and head-of-line blocking: as packets buffered in DRAM age into the highest-priority packets, SRAM must stall until they are retrieved, wasting bandwidth and degrading throughput. Worse still, existing BM schemes ignore DRAM’s access characteristics, further constraining its limited bandwidth and reducing overall performance dramatically.
+ddr/
+  rtl/
+  sim/
+  scripts/
+```
 
-> We present Themis, a hybrid buffer management scheme that fully exploits SRAM’s high bandwidth and DRAM’s large capacity. Its core principle is scheduling-aware packet placement, which ensures packets with the earliest departure time are preferentially stored in SRAM to maximize its bandwidth utilization.
->
-> To achieve this, Themis proactively migrates buffered packets between SRAM and DRAM, reserving SRAM space for imminent, high-priority traffic. Themis is compatible with diverse scheduling algorithms and supports dynamic changes to the scheduling policy. It also organizes DRAM storage according to scheduling order, mapping consecutively departing packets to contiguous addresses.
+- `hbm/` contains the HBM-oriented Themis RTL snapshot and Vivado IP configuration files.
+- `ddr/` contains a U200 DDR-backed subsystem supplement with RTL, functional simulation, stripped synthesis, U200 build, and optional ILA utility scripts.
 
 <a id="get-started"></a>
 
-## 🚀 Get Started
+## Get Started
 
-### Relevant Files
-
-- `rtl/core/bbq.sv` - resource-evaluation queue core used by the public build flow.
-- `rtl/core/themis_linked_buffer_manager.sv` - linked-cell buffer manager connected to the queue core.
-- `rtl/common/heap_ops.sv` - heap operation definitions used by the queue path.
-- `rtl/common/ffs.sv` - priority-bitmap helper logic.
-- `rtl/common/themis_memory_primitives.sv` - generic memory primitives for public compilation.
-- `rtl/top/themis_resource_eval_top.sv` - top-level resource-evaluation wrapper.
-- `rtl/ip/*` - Vivado IP configuration files for memory blocks, clocking, FIFO, HBM, and on-chip debug infrastructure retained with the public repository snapshot.
-
-### Example Compilation
+Run a lightweight HBM-version compilation sanity check:
 
 ```bash
 iverilog -g2012 \
   -s themis_resource_eval_top \
-  rtl/common/heap_ops.sv \
-  rtl/common/ffs.sv \
-  rtl/common/themis_memory_primitives.sv \
-  rtl/core/bbq.sv \
-  rtl/core/themis_linked_buffer_manager.sv \
-  rtl/top/themis_resource_eval_top.sv
+  hbm/rtl/common/heap_ops.sv \
+  hbm/rtl/common/ffs.sv \
+  hbm/rtl/common/themis_memory_primitives.sv \
+  hbm/rtl/core/bbq.sv \
+  hbm/rtl/core/themis_linked_buffer_manager.sv \
+  hbm/rtl/top/themis_resource_eval_top.sv
 ```
+
+Run the DDR-version functional simulation:
+
+```bash
+vivado -mode batch -source ddr/scripts/run_themis_core_sim.tcl
+```
+
+Run stripped synthesis for the DDR-version core:
+
+```bash
+vivado -mode batch -source ddr/scripts/synth_stripped_core.tcl
+```
+
+Build the U200 DDR-backed self-test design:
+
+```bash
+vivado -mode batch -source ddr/scripts/build_u200_ddr.tcl
+```
+
+Generated Vivado outputs are intentionally ignored by Git.
 
 <a id="requirements"></a>
 
-## ⚙️ Requirements
+## Requirements
 
 **Hardware Requirements**
 
-- The preserved Vivado IP configuration references the Xilinx Alveo U280 platform (`xilinx.com:au280:part0:1.1`) and compatible board files.
+- The HBM version references the Xilinx Alveo U280 platform (`xilinx.com:au280:part0:1.1`) and compatible board files.
+- The DDR version targets the Xilinx Alveo U200 platform and maps the off-chip tier to DDR4.
 
 **Software Requirements**
 
-- `iverilog`: SystemVerilog 2012 support for public compilation sanity checks.
+- `iverilog`: SystemVerilog 2012 support for the HBM-version compilation sanity check.
 - [Vivado Design Suite](https://www.xilinx.com/support/download/index.html/content/xilinx/en/downloadNav/vivado-design-tools/archive.html) >= `2020.2`.
 
 <a id="license"></a>
 
-## 📜 License
+## License
 
 - `BSD-2-Clause-Views`
